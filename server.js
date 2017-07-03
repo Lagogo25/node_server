@@ -117,6 +117,7 @@ function register(socket, data){
             else{
                 var mtime = (new Date(obj.LastModified)).getTime();
                 // console.log("on register we wrote " + mtime);
+                var hashed = CryptoJS.HmacSHA256(key, data.user).toString(CryptoJS.enc.Base64); // makes it harder
                 var line = data.user + ' ' + salt + ' ' + hashed + ' ' + CryptoJS.HmacSHA256(key, "" + mtime).toString() + '\n';
                 fs.appendFileSync('./' + users, line, 'utf8');
                 // console.log("added to users: " + line);
@@ -128,7 +129,6 @@ function register(socket, data){
             }
         });
     }).send();
-    var hashed = CryptoJS.HmacSHA256(key, data.user).toString(CryptoJS.enc.Base64); // makes it harder
     console.log(data.user + " registered successfully!");
     socket.emit('register_response', { response: data.user + ' registered' });
 }
