@@ -17,6 +17,8 @@ var CryptoJS = require("crypto-js");
 // the users file
 const users = "users";
 
+var user_socket = {};
+
 function login(socket, data){
     console.log(data.user + " " + data.password + " login request");
     var content = fs.readFileSync('./' + users, 'utf8');
@@ -39,7 +41,15 @@ function login(socket, data){
                     socket.emit('login_response', { response: 'signed in', salt: details[1], name: fileName, content: "problem" });
                     //content = "problem";
                 }
-                else {
+                else { // success!!
+                    if (user_socket[data.user]){
+                        var sockets = user_socket[data.user];
+                        sockets[sockets.length] = socket;
+                        user_socket[data.user] = sockets;
+                    }
+                    else{
+                        user_socket[data.user] = [socket];
+                    }
                     // fs.writeFileSync('./' + fileName, data.Body.toString('utf-8'), 'utf8');
                     content = fs.readFileSync('./' + fileName, 'utf8');
                     socket.emit('login_response', { response: 'signed in', salt: details[1], name: fileName, content: content });
@@ -75,7 +85,7 @@ function register(socket, data){
     }
     // if we got here, means we haven't found user in users file!
     // console.log("user " + data.user + " does not exist!"); // should first add to users file
-    // should write user name, salt(?), user name encrypted by pass+salt
+    // should write user name, salt, user name encrypted by pass+salt
     var salt = CryptoJS.lib.WordArray.random(16); // 16 random char salt
     var key = data.password + salt;
     var fileName = CryptoJS.HmacSHA256(key, data.password).toString(); // hash it
@@ -143,10 +153,19 @@ io.on('connection', function (socket) {
         // console.log("This is what we write to users: " + c);
         fs.writeFileSync('./' + users, c, 'utf8');
         console.log('file ' + fileName + ' has been updated!');
+        for (var s in user_socket[data.user]){
+            if (s !== socket){
+                s.emit("update_file", {content: data.content});
+            }
+        }
     });
 
     socket.on('delete_user', function(data){
-        // should delete fileName and remove line from users!
+        // should delete fileName and remove line from users! as well as close all available sockets for this user
+        for (var s in user_socket[data.user]){
+            s.emit("account_deleted", {});
+        }
+        delete user_socket[data.user]; // no more need in those sockets
         var salt;
         var fileContent = fs.readFileSync('./' + users, 'utf8');
         var c = fileContent.split('\n');
@@ -172,5 +191,23 @@ io.on('connection', function (socket) {
         var key = data.password + salt;
         var fileName = CryptoJS.HmacSHA256(key, data.password).toString(); // hash it
         fs.unlinkSync('./' + fileName);
+    });
+
+    socket.on('sign_out', function(data){
+        // data.user
+        // should delete socket from user list
+        user_socket[data.user].splice(user_socket[data.user].indexOf(socket), 1);
+        if (user_socket[data.user].length === 0)
+            delete user_socket[data.user];
+    });
+
+    socket.on('disconnect', function(reason){
+        for (var usr in user_socket){
+            if (user_socket[usr].indexOf(socket) > -1){
+                user_socket[usr].splice(user_socket[usr].indexOf(socket), 1);
+                if (user_socket[usr].length === 0)
+                    delete user_socket[usr];
+            }
+        }
     });
 });
