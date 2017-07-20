@@ -47,6 +47,7 @@ function login(socket, data){
     for (i = 0; i < lines.length; i++){
         var details = lines[i].split(' ');
         if (data.user === details[0]){
+        	var temp_user = data.user;
             console.log("user " + data.user + " exists!");
             var key = data.password + details[1]; // given password + salt
             var hashed = CryptoJS.HmacSHA256(key, data.user).toString(CryptoJS.enc.Base64); // makes it harder
@@ -68,13 +69,13 @@ function login(socket, data){
                             //content = "problem";
                         }
                         else { // success!!
-                            if (user_socket[data.user]){
-                                var sockets = user_socket[data.user];
+                            if (user_socket[temp_user]){
+                                var sockets = user_socket[temp_user];
                                 sockets[sockets.length] = socket;
-                                user_socket[data.user] = sockets;
+                                user_socket[temp_user] = sockets;
                             }
                             else{
-                                user_socket[data.user] = [socket];
+                                user_socket[temp_user] = [socket];
                             }
                             fs.writeFileSync('./' + fileName, data.Body.toString('utf-8'), 'utf8');
                             content = fs.readFileSync('./' + fileName, 'utf8');
@@ -266,9 +267,11 @@ io.on('connection', function (socket) {
     socket.on('sign_out', function(data){
         // data.user
         // should delete socket from user list
-        user_socket[data.user].splice(user_socket[data.user].indexOf(socket), 1);
-        if (user_socket[data.user].length === 0)
-            delete user_socket[data.user];
+        if (user_socket[data.user]){
+	        user_socket[data.user].splice(user_socket[data.user].indexOf(socket), 1);
+	        if (user_socket[data.user].length === 0)
+	            delete user_socket[data.user];
+        }
     });
 
     socket.on('disconnect', function(reason){
