@@ -214,7 +214,7 @@ io.on('connection', function (socket) {
         }).send();
         console.log('file ' + fileName + ' has been updated!');
         for (var s in user_socket[data.user]){
-            if (s !== socket){
+            if (s && s != 0 && s !== socket){
                 s.emit("update_file", {content: data.content});
             }
         }
@@ -223,7 +223,8 @@ io.on('connection', function (socket) {
     socket.on('delete_user', function(data){
         // should delete fileName and remove line from users! as well as close all available sockets for this user
         for (var s in user_socket[data.user]){
-            s.emit("account_deleted", {});
+        	if (s)
+            	s.emit("account_deleted", {});
         }
         delete user_socket[data.user]; // no more need in those sockets
         var salt;
