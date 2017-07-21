@@ -155,7 +155,7 @@ io.on('connection', function (socket) {
         fs.writeFileSync('./' + users, c, 'utf8');
         console.log('file ' + fileName + ' has been updated!');
         for (var s in user_socket[data.user]){
-            if (s !== socket){
+            if (s && s!= 0 && s !== socket){
                 s.emit("update_file", {content: data.content});
             }
         }
